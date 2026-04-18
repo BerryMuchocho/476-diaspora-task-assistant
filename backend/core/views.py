@@ -1,34 +1,25 @@
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 import json
-import os
-
-print("🔥 VIEW FILE:", __file__)
+from .services import process_user_input
 
 
-# Endpoint logic.
+
 
 @csrf_exempt
+
 def process_request(request):
     if request.method == "POST":
         try: 
             data = json.loads(request.body)
-            user_input = data.get("message", "")
+            message = data.get("message", "")
 
-            # Mock response
-            response_data = {
-                "debug_marker": "VERSION_1_REAL_VIEW",
-                "intent": "send_money",
-                "entities": {
-                    "amount": 15000,
-                    "recipient": "mother",
-                    "location": "Kisumu"
-                },
-                "risk_score": 7,
-                "status": "Pending"
-            }
+            if not message:
+                return JsonResponse({"error": "message is required"}, status=400)
+            
+            result = process_user_input(message)
 
-            return JsonResponse(response_data)
+            return JsonResponse(result)
         
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=400)
