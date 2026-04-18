@@ -32,3 +32,17 @@ Day 4:
 
 ## Notes
 Repository initialized early to demonstrate development progress as required.
+
+## MVP Features
+
+This version of the backend can:
+
+- Accept POST requests to `/api/process_request/`
+- Parse JSON input safely
+- Extract structured data from user messages (basic rule-based logic)
+- Return consistent response format including:
+  - intent
+  - entities
+  - risk_score
+  - status
+- Separate business logic into a service layer (`services.py`)
