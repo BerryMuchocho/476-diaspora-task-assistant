@@ -19,21 +19,24 @@ def process_request(request):
 
         # 1. Process AI-like logic
         result = process_user_input(message)
+        print("AI PIPELINEBRESULT:", result)
 
-        # 2. Handle failed intent
-        if result.get("status") == "failed":
-            return JsonResponse(result, status=400)
+        # 2. Normalize AI result safety
+        intent = result.get("intent", "unknown")
+
+        if intent == "unknown": 
+            return JsonResponse({"error": "Could not determine intent", "raw": result}, status=400)
 
         # 3. Save to database
         task = Task.objects.create(
-            intent=result["intent"],
-            entities=result["entities"],
-            risk_score=result["risk_score"],
-            steps=result["steps"],
-            whatsapp_message=result["messages"]["whatsapp"],
-            email_message=result["messages"]["email"],
-            sms_message=result["messages"]["sms"],
-            assigned_team=result["assigned_team"],
+            intent=result.get("intent", "unknown"),
+            entities=result.get("entities", {}),
+            risk_score=result.get("risk_score", 0),
+            steps=result.get("steps", []),
+            whatsapp_message=result.get("messages", {}).get("whatsapp", ""),
+            email_message=result.get("messages", {}).get("email", ""),
+            sms_message=result.get("messages", {}).get("sms", ""),
+            assigned_team=result.get("assigned_team", "unassigned"),
             status="Pending"
         )
 

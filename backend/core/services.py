@@ -1,4 +1,5 @@
 import re
+from .ai_service import extract_with_ai
 
 
 # ---------------------------
@@ -13,7 +14,6 @@ def extract_amount(text):
     if match:
         return int(match.group().replace(",", ""))
     return None
-
 
 # ---------------------------
 # 1. INTENT DETECTION
@@ -52,6 +52,13 @@ def extract_common_entities(message):
     if any(word in message for word in ["mother", "mum", "mom"]):
         entities["recipient"] = "mother"
 
+    if "recipient" not in entities:
+        recipient_match = re.search(r"\bto\s+([a-zA-Z]+)\b", message)
+        if recipient_match:
+            recipient = recipient_match.group(1).lower()
+            if recipient not in {"send", "my"}:
+                entities["recipient"] = recipient.title()
+
     # locations (expandable later)
     locations = ["kisumu", "nairobi", "westlands", "karen"]
     for loc in locations:
@@ -60,6 +67,16 @@ def extract_common_entities(message):
 
     return entities
 
+def fallback_extract(message):
+    message = message.lower()
+
+    entities = extract_common_entities(message)
+    intent = detect_intent(message, entities)
+
+    return {
+        "intent": intent,
+        "entities": entities
+    }
 
 # ---------------------------
 # 3. ENTITY EXTRACTION (INTENT-SPECIFIC)
@@ -204,16 +221,48 @@ def assign_team(intent):
 def process_user_input(message):
     message = normalize_text(message)
 
-    entities = extract_common_entities(message)
-    intent = detect_intent(message, entities)
-    entities = enrich_entities(intent, message, entities)
+    # 1. AI extraction
+    ai_result = extract_with_ai(message)
+    print("AI RESULT:", ai_result)
 
-    if intent == "unknown":
+    if not isinstance(ai_result, dict):
         return {
-            "error": "Could not determine intent",
-            "status": "failed"
+            "status": "failed",
+            "error": "invalid_ai_output",
+            "intent": "unknown",
+            "entities": {}
         }
 
+    intent = ai_result.get("intent", "unknown")
+    entities = ai_result.get("entities", {})
+
+    if not isinstance(entities, dict):
+        entities = {}
+
+    common_entities = extract_common_entities(message)
+    for key, value in common_entities.items():
+        if not entities.get(key):
+            entities[key] = value
+
+    # 2. fallback if AI fails
+    if intent == "unknown":
+        fallback = fallback_extract(message)
+        print("FALLBACK RESULT:", fallback)
+        intent = fallback["intent"]
+        entities = fallback["entities"]
+
+        if intent == "unknown":
+            return {
+                "status": "failed",
+                "error": "Could not determine intent",
+                "intent": "unknown",
+                "entities": {}
+            }
+
+    # 3. enrich entities
+    entities = enrich_entities(intent, message, entities)
+
+    # 4. build outputs
     risk_score = calculate_risk(intent, entities)
     steps = generate_steps(intent)
     messages = generate_messages(intent, entities, risk_score)
