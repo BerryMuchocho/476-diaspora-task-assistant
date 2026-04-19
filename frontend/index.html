@@ -2,34 +2,57 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Vunoh Task Dashboard</title>
     <link rel="stylesheet" href="styles.css">
 </head>
-
 <body>
+    <div class="page-shell">
+        <header class="hero">
+            <p class="eyebrow">Diaspora Task Assistant</p>
+            <h1>Vunoh Global Task Dashboard</h1>
+            <p class="hero-copy">
+                Capture customer requests, score risk, assign teams, and track fulfilment in one place.
+            </p>
+        </header>
 
-    <div class="container">
+        <main class="container">
+            <section class="card create-card">
+                <div class="section-heading">
+                    <div>
+                        <p class="section-label">New Request</p>
+                        <h2>Create Task</h2>
+                    </div>
+                    <button class="ghost-button" onclick="loadTasks()">Refresh Tasks</button>
+                </div>
 
-        <h1>Vunoh Global Task Dashboard</h1>
+                <div class="input-row">
+                    <input id="message" type="text" placeholder="Type a customer request in plain English..." />
+                    <button class="primary-button" onclick="createTask()">Submit</button>
+                </div>
 
-        <!-- CREATE TASK -->
-        <div class="card">
-            <h2>Create Request</h2>
+                <div class="examples">
+                    <button class="example-chip" onclick="fillExample('Send 15000 to my mother in Kisumu urgently')">Send money</button>
+                    <button class="example-chip" onclick="fillExample('Please verify my land title in Karen')">Verify document</button>
+                    <button class="example-chip" onclick="fillExample('Can someone clean my apartment in Westlands on Friday?')">Hire service</button>
+                    <button class="example-chip" onclick="fillExample('I need an airport transfer from JKIA to Nairobi tonight')">Airport transfer</button>
+                </div>
 
-            <input id="message" type="text" placeholder="Type request..." />
-            <button onclick="createTask()">Submit</button>
+                <p id="response" class="response"></p>
+            </section>
 
-            <p id="response"></p>
-        </div>
+            <section class="card dashboard-card">
+                <div class="section-heading">
+                    <div>
+                        <p class="section-label">Task Board</p>
+                        <h2>All Tasks</h2>
+                    </div>
+                    <p class="muted">Status updates save immediately.</p>
+                </div>
 
-        <!-- TASK LIST -->
-        <div class="card">
-            <h2>Tasks</h2>
-            <button onclick="loadTasks()">Refresh</button>
-
-            <div id="tasks"></div>
-        </div>
-
+                <div id="tasks" class="task-grid"></div>
+            </section>
+        </main>
     </div>
 
     <script src="app.js"></script>
