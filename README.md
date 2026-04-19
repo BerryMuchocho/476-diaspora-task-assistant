@@ -124,7 +124,78 @@ The database includes sample tasks covering:
 - verify document
 - check status
 
-## Notes
+## Decisions I made and why
 
-- The backend prefers AI extraction first and falls back to deterministic extraction if the AI call fails.
-- This makes the system resilient during API/network issues while keeping structured responses consistent.
+### AI tool used (Groq)
+I used Groq as the LLM provider because it offers fast inference and reliable responses for real-time intent and entity extraction. Since the system depends on immediate processing of user requests, latency and consistency were important factors in the choice.
+
+Groq was used for:
+- Extracting intent from user messages
+- Identifying structured entities such as amounts, locations, recipients, and document types
+- Returning machine-readable JSON for backend processing
+
+---
+
+### System prompt design decisions
+The system prompt was carefully constrained to ensure structured and predictable outputs. The goal was to make the model behave like a deterministic parser rather than a conversational assistant.
+
+Key design choices:
+- Restricted output to predefined intents only
+- Enforced strict JSON formatting for parsing reliability
+- Prioritised structured entity extraction over explanations
+- Removed conversational or narrative responses
+
+Elements intentionally excluded:
+- Chain-of-thought reasoning
+- Free-form text responses
+- Extended explanations or justifications
+
+This approach was chosen to improve consistency and ensure downstream services could reliably process AI output without manual correction.
+
+---
+
+### Fallback logic and AI override
+In cases where the AI response is incomplete, malformed, or returns an `unknown` intent, I implemented a rule-based fallback system.
+
+The fallback is triggered when:
+- JSON parsing fails
+- Required fields are missing
+- Intent cannot be confidently determined
+
+In such cases, the system:
+- Uses keyword-based extraction rules
+- Ensures a valid intent is still assigned
+- Prevents task creation failure
+
+This decision ensures system reliability even when the AI model is inconsistent or unavailable.
+
+---
+
+### Handling unexpected AI behaviour
+The initial assumption was that the AI would consistently return clean structured JSON. However, real-world usage showed:
+- Inconsistent formatting
+- Missing or partial fields
+- Occasional incorrect intent classification
+
+To address this:
+- The system prompt was refined for stricter output control
+- Backend validation was added for all AI responses
+- A deterministic fallback extractor was implemented
+- Intent normalization was enforced before saving to the database
+
+These changes improved stability and reduced failed task creation.
+
+---
+
+### Architectural decisions
+The backend was intentionally structured into separate layers:
+
+- `views.py` → handles HTTP requests only
+- `services.py` → contains business logic and orchestration
+- `ai_service.py` → manages all AI interactions
+
+This separation was chosen to:
+- Allow easy replacement of the AI provider in future
+- Improve maintainability and debugging
+- Isolate AI-specific logic from core business logic
+- Make the system easier to test and extend
