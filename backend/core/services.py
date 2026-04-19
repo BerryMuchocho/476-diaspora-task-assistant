@@ -24,6 +24,12 @@ def detect_intent(message, entities):
     if "send" in msg and (entities.get("amount") or "money" in msg or "kes" in msg):
         return "send_money"
 
+    if any(
+        phrase in msg
+        for phrase in ["airport transfer", "airport pickup", "airport pick up", "pick me from the airport"]
+    ) or ("airport" in msg and any(word in msg for word in ["pickup", "pick", "drop", "transfer"])):
+        return "get_airport_transfer"
+
     if any(word in msg for word in ["clean", "hire", "someone", "help"]):
         return "hire_service"
 
@@ -52,7 +58,7 @@ def extract_common_entities(message):
     if any(word in message for word in ["mother", "mum", "mom"]):
         entities["recipient"] = "mother"
 
-    if "recipient" not in entities:
+    if "recipient" not in entities and ("send" in message or "money" in message or "kes" in message):
         recipient_match = re.search(r"\bto\s+([a-zA-Z]+)\b", message)
         if recipient_match:
             recipient = recipient_match.group(1).lower()
@@ -96,6 +102,23 @@ def enrich_entities(intent, message, entities):
         if "clean" in message:
             entities["service_type"] = "cleaning"
 
+    if intent == "get_airport_transfer":
+        entities["service_type"] = "airport_transfer"
+
+        pickup_match = re.search(r"(?:from|pickup at|pick up at)\s+([a-zA-Z\s]+?)(?:\s+to\b|$)", message)
+        if pickup_match:
+            entities["pickup_location"] = pickup_match.group(1).strip().title()
+
+        dropoff_match = re.search(r"\bto\s+([a-zA-Z\s]+?)(?:\s+from\b|$)", message)
+        if dropoff_match:
+            dropoff_value = re.sub(
+                r"\b(today|tonight|tomorrow|now|urgent|urgently|asap)\b",
+                "",
+                dropoff_match.group(1),
+            ).strip()
+            if dropoff_value.lower() not in {"send", "my"}:
+                entities["dropoff_location"] = dropoff_value.title()
+
     return entities
 
 
@@ -134,6 +157,18 @@ def calculate_risk(intent, entities):
         if not entities.get("location"):
             score += 5
 
+    elif intent == "get_airport_transfer":
+        score += 10
+
+        if entities.get("urgency") == "high":
+            score += 10
+
+        if not entities.get("pickup_location") and not entities.get("location"):
+            score += 10
+
+        if not entities.get("dropoff_location"):
+            score += 10
+
     return min(score, 100)
 
 
@@ -154,6 +189,12 @@ def generate_steps(intent):
             "Schedule service",
             "Confirm completion"
         ],
+        "get_airport_transfer": [
+            "Confirm pickup and dropoff details",
+            "Assign driver",
+            "Schedule airport transfer",
+            "Send trip confirmation"
+        ],
         "verify_document": [
             "Receive document",
             "Assign legal officer",
@@ -173,12 +214,15 @@ def generate_steps(intent):
 # ---------------------------
 # 6. MESSAGE GENERATION
 # ---------------------------
-def generate_messages(intent, entities, risk_score):
+def generate_messages(intent, entities, risk_score, task_code=None):
     summary = intent.replace("_", " ").title()
+    reference_line = f"Task Code: {task_code}\n" if task_code else ""
+    sms_reference = f" Ref:{task_code}." if task_code else " Ref coming."
 
     whatsapp = (
         f"Hi 👋\n"
         f"{summary} received.\n"
+        f"{reference_line}"
         f"Risk Score: {risk_score}\n"
         f"We’ll update you shortly."
     )
@@ -186,6 +230,7 @@ def generate_messages(intent, entities, risk_score):
     email = (
         "Subject: Task Confirmation\n\n"
         "Your request has been successfully logged.\n\n"
+        f"{reference_line}"
         f"Intent: {intent}\n"
         f"Entities: {entities}\n"
         f"Risk Score: {risk_score}\n\n"
@@ -193,7 +238,7 @@ def generate_messages(intent, entities, risk_score):
         "Thank you."
     )
 
-    sms = f"{summary} received. Risk:{risk_score}. Ref coming."
+    sms = f"{summary} received. Risk:{risk_score}.{sms_reference}"
 
     return {
         "whatsapp": whatsapp,
@@ -208,6 +253,7 @@ def generate_messages(intent, entities, risk_score):
 def assign_team(intent):
     mapping = {
         "send_money": "Finance",
+        "get_airport_transfer": "Operations",
         "hire_service": "Operations",
         "verify_document": "Legal",
         "check_status": "Support"

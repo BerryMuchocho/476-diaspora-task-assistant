@@ -48,6 +48,12 @@ function loadTasks() {
         let html = "";
 
         data.forEach(task => {
+            const entities = JSON.stringify(task.entities || {}, null, 2);
+            const steps = (task.steps || []).map(step => `<li>${step}</li>`).join("");
+            const history = (task.status_history || [])
+                .map(item => `<li>${item.old_status || "Created"} → ${item.new_status} (${new Date(item.changed_at).toLocaleString()})</li>`)
+                .join("");
+
             html += `
                 <div class="task">
                     <b>${task.task_code}</b><br>
@@ -55,6 +61,13 @@ function loadTasks() {
                     Risk: ${task.risk_score}<br>
                     Status: ${task.status}<br>
                     Team: ${task.assigned_team}<br>
+                    Created: ${new Date(task.created_at).toLocaleString()}<br>
+                    <pre>Entities: ${entities}</pre>
+                    <div><b>Steps</b><ol>${steps}</ol></div>
+                    <div><b>WhatsApp</b><br>${task.messages?.whatsapp || ""}</div>
+                    <div><b>Email</b><br>${task.messages?.email || ""}</div>
+                    <div><b>SMS</b><br>${task.messages?.sms || ""}</div>
+                    <div><b>Status History</b><ul>${history}</ul></div>
 
                     <button onclick="updateStatus('${task.task_code}', 'Pending')">Pending</button>
                     <button onclick="updateStatus('${task.task_code}', 'In Progress')">In Progress</button>

@@ -10,6 +10,7 @@ client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 ALLOWED_INTENTS = [
     "send_money",
+    "get_airport_transfer",
     "hire_service",
     "verify_document",
     "check_status"
@@ -27,13 +28,15 @@ No text before or after.
 
 Schema:
 {{
-  "intent": "send_money | hire_service | verify_document | check_status | unknown",
+  "intent": "send_money | get_airport_transfer | hire_service | verify_document | check_status | unknown",
   "entities": {{
     "amount": number or null,
     "location": string or null,
     "recipient": string or null,
     "service_type": string or null,
     "document_type": string or null,
+    "pickup_location": string or null,
+    "dropoff_location": string or null,
     "urgency": "high" or "low" or null
   }}
 }}
